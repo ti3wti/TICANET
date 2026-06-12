@@ -34,7 +34,7 @@ Un operador de radioaficionado envía un mensaje APRS al bot (por ejemplo `CQ TI
 ```
 ## Ejemplo de QSL
 
-![QSL de ejemplo TICANET](https://raw.githubusercontent.com/ti3wti/TICANET/main/qsl_ej1.png)
+![QSL de ejemplo TICANET](qsl_ej1.png)
 
 ## Eventos soportados
 
