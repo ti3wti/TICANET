@@ -1,0 +1,20 @@
+{
+    "callsign": "TICANET",
+    "login": "YOUR_CALLSIGN",
+    "passcode": "YOUR_PASSCODE",
+    "host": "rotate.aprs2.net",
+    "port": 14580,
+    "beacon_enabled": true,
+    "beacon_interval": 1800,
+    "latitude": 0.0000,
+    "longitude": 0.0000,
+    "beacon_comment": "TICANET Bot - QSL Digital",
+    "beacon_symbol_table": "/",
+    "beacon_symbol": "#",
+    "data_dir": "/home/tecnico/ticanet-bot/data",
+    "events_file": "/home/tecnico/ticanet-bot/events.json",
+    "log_file": "/home/tecnico/ticanet-bot/ticanet.log",
+    "msg_cooldown": 8,
+    "ack_retries": 3,
+    "sheets_webhook_url": "https://script.google.com/macros/s/YOUR_SCRIPT_ID/exec"
+}

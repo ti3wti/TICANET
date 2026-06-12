@@ -1,0 +1,17 @@
+[Unit]
+Description=TICANET APRS-IS Bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=tecnico
+WorkingDirectory=/home/tecnico/ticanet-bot
+ExecStart=/usr/bin/python3 /home/tecnico/ticanet-bot/ticanet_bot.py
+Restart=always
+RestartSec=30
+StandardOutput=append:/home/tecnico/ticanet-bot/ticanet.log
+StandardError=append:/home/tecnico/ticanet-bot/ticanet.log
+
+[Install]
+WantedBy=multi-user.target
