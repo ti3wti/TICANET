@@ -32,7 +32,9 @@ Un operador de radioaficionado envía un mensaje APRS al bot (por ejemplo `CQ TI
      │ <─────────────────────────────────────────────────────────│ Apps Script
      │                             │                             │
 ```
+## Ejemplo de QSL
 
+![QSL de ejemplo TICANET](qsl_ej1.png)
 ## Eventos soportados
 
 El bot soporta múltiples eventos simultáneos. Cada evento tiene su propio comando CQ, horario y plantilla QSL independiente. No es necesario modificar el código del bot ni del Apps Script para agregar nuevos eventos: solo se edita `events.json`.
