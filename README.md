@@ -255,5 +255,5 @@ MIT License — ver [LICENSE](LICENSE).
 ## Contacto
 
 - **Operador**: Ing. William Marín Moreno ([TI3WTI](https://www.qrz.com/db/TI3WTI))
-- **Club**: TI0ARC — Asociación de Radioaficionados de Cartago
-- **Laboratorio**: RadioLab TEC — ITCR, Cartago, Costa Rica
+- **TI0ARC** —  [Asociación de Radioaficionados de Cartago](http://www.ti0arc.org/) 
+- **RadioLab TEC** — ITCR, Cartago, Costa Rica
