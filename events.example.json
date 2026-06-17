@@ -1,7 +1,7 @@
 [
   {
     "id": "ticanet_general",
-    "name": "TICANET Net",
+    "name": "TICANET",
     "command": "CQ TICANET",
     "aliases": ["CQ", "CHECKIN"],
     "type": "special",
@@ -10,8 +10,10 @@
     "start_time": "00:00",
     "end_time": "23:59",
     "timezone_offset": -6,
+    "cumulative": true,
+    "number_offset": 0,
     "description": "Net general TICANET - Disponible 24/7",
-    "template_id": "YOUR_GOOGLE_SLIDES_ID",
+    "template_id": "YOUR_GOOGLE_SLIDES_TEMPLATE_ID",
     "form_url": "https://tinyurl.com/YOUR_FORM",
     "active": true
   },
@@ -26,7 +28,7 @@
     "end_time": "23:59",
     "timezone_offset": -6,
     "description": "Check-in semanal APRS Thursday CR",
-    "template_id": "YOUR_GOOGLE_SLIDES_ID",
+    "template_id": "YOUR_GOOGLE_SLIDES_TEMPLATE_ID",
     "form_url": "https://tinyurl.com/YOUR_FORM",
     "active": true
   },
@@ -38,17 +40,17 @@
     "type": "monthly",
     "week_of_month": 2,
     "day_of_week": 6,
-    "start_time": "07:00",
-    "end_time": "10:00",
+    "start_time": "00:00",
+    "end_time": "23:59",
     "timezone_offset": -6,
     "description": "Check-in Revista Matutina - 2do domingo de cada mes",
-    "template_id": "YOUR_GOOGLE_SLIDES_ID",
+    "template_id": "YOUR_GOOGLE_SLIDES_TEMPLATE_ID",
     "form_url": "https://tinyurl.com/YOUR_FORM",
     "active": true
   },
   {
-    "id": "actividad_especial",
-    "name": "Actividad Especial",
+    "id": "especial_ejemplo",
+    "name": "Actividad Especial Demo",
     "command": "CQ ESPECIAL",
     "aliases": [],
     "type": "special",
@@ -57,8 +59,8 @@
     "start_time": "08:00",
     "end_time": "18:00",
     "timezone_offset": -6,
-    "description": "Actividad especial",
-    "template_id": "YOUR_GOOGLE_SLIDES_ID",
+    "description": "Actividad especial de demostración",
+    "template_id": "",
     "form_url": "https://tinyurl.com/YOUR_FORM",
     "active": false
   }
