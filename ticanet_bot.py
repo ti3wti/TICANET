@@ -135,14 +135,45 @@ class MemberManager:
         local = datetime.utcnow() + timedelta(hours=tz_offset)
         return local.strftime("%Y-%m-%d")
 
+    # ------------------------------------------------------------------
+    # Acumulativos: eventos cuya numeración NO se reinicia por día.
+    # El número de participante es continuo sobre todos los CSV del evento.
+    # El offset (number_offset en events.json) se suma al conteo para
+    # arrancar en un número específico (ej. ya se reportaron 37 -> offset 37,
+    # el siguiente será #38).
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _is_cumulative(event):
+        return bool(event.get("cumulative", False))
+
+    def _event_dir(self, event_id):
+        event_dir = os.path.join(self.data_dir, event_id)
+        os.makedirs(event_dir, exist_ok=True)
+        return event_dir
+
+    def _iter_event_rows(self, event):
+        """Itera todas las filas de todos los CSV del evento (acumulativo)."""
+        event_dir = self._event_dir(event["id"])
+        for fname in sorted(os.listdir(event_dir)):
+            if not fname.endswith(".csv"):
+                continue
+            path = os.path.join(event_dir, fname)
+            with open(path, "r") as f:
+                for row in csv.DictReader(f):
+                    yield row
+
     def get_code(self, callsign, event):
+        """
+        Devuelve el código SOLO si el indicativo ya se reportó HOY.
+        En días distintos siempre se permite un nuevo check-in (código nuevo),
+        tanto en eventos acumulativos como por-día.
+        """
         tz = event.get("timezone_offset", -6)
         filepath = self._get_filepath(event["id"], self._get_today_str(tz))
         if not os.path.exists(filepath):
             return None
         with open(filepath, "r") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
+            for row in csv.DictReader(f):
                 if row["callsign"].upper() == callsign.upper():
                     return row["code"]
         return None
@@ -152,11 +183,13 @@ class MemberManager:
         date_str = self._get_today_str(tz)
         filepath = self._get_filepath(event["id"], date_str)
 
+        # Solo se bloquea el doble check-in DENTRO del mismo día.
+        # En otra fecha siempre puede volver a reportarse.
         existing = self.get_code(callsign, event)
         if existing:
             return existing, self.get_count(event), True
 
-        code = self._generate_code(filepath)
+        code = self._generate_code(event, filepath)
         count = self.get_count(event) + 1
 
         file_exists = os.path.exists(filepath)
@@ -181,6 +214,16 @@ class MemberManager:
         return code, count, False
 
     def get_count(self, event):
+        """
+        Acumulativo: cuenta TODOS los check-ins de todos los CSV del evento
+        + el offset configurado (number_offset).
+        Por-día: cuenta solo el CSV de hoy.
+        """
+        if self._is_cumulative(event):
+            offset = int(event.get("number_offset", 0))
+            total = sum(1 for _ in self._iter_event_rows(event))
+            return total + offset
+
         tz = event.get("timezone_offset", -6)
         filepath = self._get_filepath(event["id"], self._get_today_str(tz))
         if not os.path.exists(filepath):
@@ -189,6 +232,7 @@ class MemberManager:
             return sum(1 for _ in csv.DictReader(f))
 
     def get_list(self, event):
+        """Lista de indicativos del CSV de HOY (para LIST)."""
         tz = event.get("timezone_offset", -6)
         filepath = self._get_filepath(event["id"], self._get_today_str(tz))
         if not os.path.exists(filepath):
@@ -196,9 +240,16 @@ class MemberManager:
         with open(filepath, "r") as f:
             return [row["callsign"] for row in csv.DictReader(f)]
 
-    def _generate_code(self, filepath, length=4):
+    def _generate_code(self, event, filepath, length=4):
+        """
+        Genera un código numérico de 4 dígitos (nunca inicia en 0).
+        Acumulativo: único contra TODOS los CSV del evento.
+        Por-día: único dentro del CSV del día.
+        """
         existing_codes = set()
-        if os.path.exists(filepath):
+        if self._is_cumulative(event):
+            existing_codes = {row["code"] for row in self._iter_event_rows(event)}
+        elif os.path.exists(filepath):
             with open(filepath, "r") as f:
                 existing_codes = {row["code"] for row in csv.DictReader(f)}
         while True:
