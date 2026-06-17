@@ -2,7 +2,7 @@
 
 Bot APRS-IS standalone para gestión de nets y emisión de QSL digitales automatizadas.
 
-Operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica.
+Operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica. Grid EJ89BT.
 
 Inspirado en [MYANET APRS Bot](http://9w2key.blogspot.com/) de 9W2KEY (Malasia).
 
@@ -32,6 +32,7 @@ Un operador de radioaficionado envía un mensaje APRS al bot (por ejemplo `CQ TI
      │ <─────────────────────────────────────────────────────────│ Apps Script
      │                             │                             │
 ```
+
 ## Ejemplo de QSL
 
 ![QSL de ejemplo TICANET](qsl1.png)
@@ -44,7 +45,7 @@ El bot soporta múltiples eventos simultáneos. Cada evento tiene su propio coma
 |---------|--------|----------------|-----------|
 | `CQ TICANET` | Net general TICANET | 24/7, todos los días | QSL general |
 | `CQ APRSDAY` | APRS Thursday CR | Jueves, todo el día | QSL Thursday |
-| `CQ MATUTINA` | Revista Matutina TI0ARC | 2do domingo, 07:00-10:00 | QSL Revista |
+| `CQ MATUTINA` | Revista Matutina TI0ARC | 2do domingo de cada mes | QSL Revista |
 | `CQ [CUSTOM]` | Actividades especiales | Fechas configurables | QSL por evento |
 
 ## Comandos disponibles
@@ -72,7 +73,7 @@ El bot soporta múltiples eventos simultáneos. Cada evento tiene su propio coma
 ```
 
 - **Bot**: Python 3 + aprslib, corre en Raspberry Pi 3B+ (o cualquier sistema con Internet)
-- **Datos locales**: CSV por evento/fecha en la RPi, numeración independiente por evento
+- **Datos locales**: CSV por evento/fecha en la RPi
 - **Datos en la nube**: Google Sheets recibe los códigos vía HTTP POST
 - **Certificados**: Google Slides (plantilla por evento) → PDF → Gmail automático
 - **Formulario**: Google Forms para reclamar la QSL con código de verificación
@@ -147,8 +148,8 @@ Para instrucciones detalladas paso a paso, ver [INSTALL.md](INSTALL.md).
     "port": 14580,
     "beacon_enabled": true,
     "beacon_interval": 1800,
-    "latitude": 9.8394,
-    "longitude": -83.9022,
+    "latitude": 0.0000,
+    "longitude": 0.0000,
     "beacon_comment": "TICANET Bot - QSL Digital",
     "beacon_symbol_table": "/",
     "beacon_symbol": "#",
@@ -168,17 +169,21 @@ Cada evento define su comando, horario y plantilla:
 ```json
 [
     {
-        "id": "aprs_day",
-        "name": "APRS Thursday Costa Rica",
+        "id": "ticanet_general",
+        "name": "TICANET",
         "command": "CQ TICANET",
         "aliases": ["CQ", "CHECKIN"],
-        "type": "weekly",
-        "day_of_week": 3,
+        "type": "special",
+        "start_date": "2026-01-01",
+        "end_date": "2030-12-31",
         "start_time": "00:00",
         "end_time": "23:59",
         "timezone_offset": -6,
+        "cumulative": true,
+        "number_offset": 0,
+        "description": "Net general TICANET - Disponible 24/7",
         "template_id": "ID_DE_GOOGLE_SLIDES",
-        "form_url": "https://forms.gle/xxx",
+        "form_url": "https://tinyurl.com/YOUR_FORM",
         "active": true
     }
 ]
@@ -190,7 +195,24 @@ Cada evento define su comando, horario y plantilla:
 |------|-------------------|---------|
 | `weekly` | `day_of_week` (0=Lun, 6=Dom) | APRS Thursday |
 | `monthly` | `week_of_month`, `day_of_week` | Revista Matutina (2do domingo) |
-| `special` | `start_date`, `end_date` | Actividad especial |
+| `special` | `start_date`, `end_date` | Net general / Actividad especial |
+
+#### Campos opcionales de numeración
+
+| Campo | Tipo | Descripción |
+|-------|------|-------------|
+| `cumulative` | bool | Si es `true`, el número de participante es **continuo** y no se reinicia por día (cuenta todos los CSV del evento). Si se omite o es `false`, la numeración se reinicia cada día. |
+| `number_offset` | int | Número base que se suma al conteo acumulado. Útil para arrancar desde un número específico (ej. `37` hace que el siguiente participante sea el `#38`). |
+
+## Numeración de participantes
+
+Por defecto, cada evento numera a los participantes por día: el primer check-in de cada fecha es `#1`. Esto es lo deseable para eventos recurrentes como la Revista Matutina, donde cada emisión arranca su propia cuenta.
+
+Para la net general (`ticanet_general`) la numeración es **acumulativa**: con `cumulative: true` el número crece de forma continua entre días, de modo que un operador puede ser `#38` hoy y `#150` semanas después. El campo `number_offset` permite continuar una numeración previa (por ejemplo, si ya hubo 37 check-ins antes de activar el modo acumulativo, `number_offset: 37` hace que el siguiente sea `#38`).
+
+> Nota: en modo acumulativo, el conteo se calcula como (filas existentes en la carpeta del evento) + `number_offset`. Si se activa el offset sobre datos previos, conviene respaldar y vaciar los CSV antiguos de la carpeta del evento para que el número inicial sea exacto.
+
+Un mismo operador puede reportarse de nuevo en días distintos y recibir un código y número nuevos; el bloqueo de doble check-in aplica solo dentro de la misma fecha.
 
 ## Google Apps Script
 
@@ -205,7 +227,7 @@ El archivo `apps_script/Codigo.gs` contiene el código para Google Apps Script q
 2. Vincular respuestas a Google Sheet
 3. Crear hoja "Codes" en el mismo Sheet
 4. Extensiones → Apps Script → pegar código de `apps_script/Codigo.gs`
-5. Configurar `TEMPLATE_ID` con el ID de la plantilla de Google Slides
+5. Configurar `TEMPLATE_ID_DEFAULT` con el ID de la plantilla de Google Slides
 6. Implementar como App Web (acceso: cualquier persona)
 7. Crear trigger: `onFormSubmit` → Al enviar formulario
 
@@ -234,9 +256,11 @@ TICANET/
 ├── ticanet.service         # Archivo systemd
 ├── apps_script/
 │   └── Codigo.gs           # Google Apps Script
-├── templates/
-│   └── QSL_APRS_Thursday.pptx  # Plantilla QSL base
+├── templates/              # Plantillas QSL (Google Slides)
 ├── data/                   # CSV de check-ins (NO en Git)
+│   ├── ticanet_general/
+│   ├── aprs_thursday/
+│   └── revista_matutina/
 ├── INSTALL.md              # Guía de instalación detallada
 ├── LICENSE
 └── README.md
@@ -255,5 +279,5 @@ MIT License — ver [LICENSE](LICENSE).
 ## Contacto
 
 - **Operador**: Ing. William Marín Moreno ([TI3WTI](https://www.qrz.com/db/TI3WTI))
-- **TI0ARC** —  [Asociación de Radioaficionados de Cartago](http://www.ti0arc.org/) 
+- **TI0ARC** — [Asociación de Radioaficionados de Cartago](http://www.ti0arc.org/)
 - **RadioLab TEC** — ITCR, Cartago, Costa Rica
