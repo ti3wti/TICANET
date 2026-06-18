@@ -2,7 +2,7 @@
 
 Bot APRS-IS standalone para gestión de nets y emisión de QSL digitales automatizadas.
 
-Operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica. Grid EJ89BT.
+Desarrollado Operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica. Grid EJ89BT.
 
 Inspirado en [MYANET APRS Bot](http://9w2key.blogspot.com/) de 9W2KEY (Malasia).
 
@@ -43,12 +43,12 @@ El bot soporta múltiples eventos simultáneos. Cada evento tiene su propio coma
 
 | Comando | Aliases | Evento | Disponibilidad | Plantilla |
 |---------|---------|--------|----------------|-----------|
-| `CQ TICANET` | `CQ`, `CHECKIN` | Net general TICANET | 24/7, todos los días | QSL general |
-| `CQ APRSDAY` | `CQ THURSDAY` | APRS Thursday CR | Jueves, todo el día | QSL Thursday |
+| `CQ TICANET` | `CQ`, `CHECKIN`, `TICANET` | Net general TICANET | 24/7, todos los días | QSL general |
+| `APRSDAY` | `CQ THURSDAY`, `JUEVES APRS`, `JUEVES`, `CQ JUEVES` | Jueves de APRS CR | Jueves, todo el día | QSL Thursday |
 | `CQ MATUTINA` | `CQ REVISTA` | Revista Matutina TI0ARC | 2do domingo de cada mes | QSL Revista |
-| `CQ [CUSTOM]` | (configurable) | Actividades especiales | Fechas configurables | QSL por evento |
+| `CQ ESPECIAL` | (configurable) | Actividades especiales | Fechas configurables | QSL por evento |
 
-Los **aliases** son comandos alternativos que activan el mismo evento. Por ejemplo, tanto `CQ APRSDAY` como `CQ THURSDAY` registran un check-in en APRS Thursday. Se definen en el campo `aliases` de cada evento en `events.json`.
+Los **aliases** son comandos alternativos que activan el mismo evento. Por ejemplo, `APRSDAY`, `CQ THURSDAY`, `JUEVES APRS`, `JUEVES` y `CQ JUEVES` registran todos un check-in en el evento Jueves de APRS. Se definen en el campo `aliases` de cada evento en `events.json`.
 
 ## Comandos disponibles
 
@@ -58,8 +58,8 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 
 | Comando | Aliases | Acción |
 |---------|---------|--------|
-| `CQ TICANET` | `CQ`, `CHECKIN` | Check-in a la net general (24/7) |
-| `CQ APRSDAY` | `CQ THURSDAY` | Check-in al APRS Thursday (jueves) |
+| `CQ TICANET` | `CQ`, `CHECKIN`, `TICANET` | Check-in a la net general (24/7) |
+| `APRSDAY` | `CQ THURSDAY`, `JUEVES APRS`, `JUEVES`, `CQ JUEVES` | Check-in al Jueves de APRS |
 | `CQ MATUTINA` | `CQ REVISTA` | Check-in a la Revista Matutina (2do domingo) |
 
 ### Comandos de consulta y servicio
@@ -194,7 +194,7 @@ Cada evento define su comando, horario y plantilla:
         "id": "ticanet_general",
         "name": "TICANET",
         "command": "CQ TICANET",
-        "aliases": ["CQ", "CHECKIN"],
+        "aliases": ["CQ", "CHECKIN", "TICANET"],
         "type": "special",
         "start_date": "2026-01-01",
         "end_date": "2030-12-31",
