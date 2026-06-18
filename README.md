@@ -52,7 +52,7 @@ Los **aliases** son comandos alternativos que activan el mismo evento. Por ejemp
 
 ## Comandos disponibles
 
-Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No distinguen mayúsculas/minúsculas (el bot normaliza el texto), pero deben escribirse de forma exacta (sin texto adicional).
+Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No distinguen mayúsculas/minúsculas (el bot normaliza el texto), pero deben escribirse de forma exacta (sin texto adicional, salvo los comandos que aceptan argumentos como `DIST`).
 
 ### Comandos de check-in
 
@@ -72,9 +72,22 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 | `HORA` | `UTC`, `TIME` | Hora actual UTC y local |
 | `CLIMA` | `WX`, `TIEMPO` | Clima actual en la ubicación del bot (Cartago) |
 | `GRID` | `LOCATOR`, `QTH` | Grid locator Maidenhead y coordenadas del bot |
+| `DIST` | `DISTANCIA`, `QRB` | Distancia y azimut entre estaciones (ver abajo) |
 | `INFO` | `HELP`, `AYUDA`, `?` | Comandos de check-in disponibles y otros comandos |
 | `EVENTOS` | `EVENTS` | Lista de todos los eventos programados |
 | `SALIR` | `QUIT`, `EXIT`, `KELUAR` | Despedida (el registro se mantiene) |
+
+### Comando DIST
+
+Calcula distancia (km) y azimut entre estaciones, usando la última posición conocida en aprs.fi. Acepta tres formas:
+
+| Forma | Qué calcula | Ejemplo de respuesta |
+|-------|-------------|----------------------|
+| `DIST` | Del operador a TICANET | `TI3WTI-10 a TICANET: 4 km, azimut 132. 73!` |
+| `DIST CALL` | Del operador hasta CALL | `TI3WTI-10->TG5ALY-9: 1002 km, azimut 307. 73!` |
+| `DIST CALL1 CALL2` | Entre dos estaciones | `TI3ATS->XE3JCL: 1820 km, azimut 318. 73!` |
+
+Si el indicativo se escribe sin SSID y no se encuentra, el bot prueba automáticamente los SSID más comunes (-9, -10, -7, etc.) en una sola consulta, y responde con el indicativo real hallado. Requiere una API key de aprs.fi configurada en `config.json` (campo `aprsfi_api_key`); sin ella, el comando indica que no está disponible.
 
 ## Mensajes de respuesta del bot
 
@@ -87,6 +100,7 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 | `HORA` | `UTC 04:18 \| Local 22:18 (17/06/2026)` |
 | `CLIMA` | `WX Cartago: 20.0C, HR 91%, viento 0.6km/h. 73!` |
 | `GRID` | `TICANET QTH: EJ89bt (9.8320, -83.8809)` |
+| `DIST` | `TI3WTI-10 a TICANET: 4 km, azimut 132. 73!` |
 | `LIST` sin check-ins | `Aun no hay check-ins.` |
 | `STATUS` | `{evento} \| Check-ins: {N}` |
 | Comando no reconocido | `Cmd no reconocido. Envia INFO para ayuda.` |
@@ -128,6 +142,7 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 
 - Indicativo de radioaficionado válido con passcode APRS-IS
 - Cuenta de Google (para Forms, Sheets, Slides, Apps Script)
+- (Opcional) API key de [aprs.fi](https://aprs.fi/page/api) para el comando `DIST`
 
 ## Instalación rápida
 
@@ -191,11 +206,12 @@ Para instrucciones detalladas paso a paso, ver [INSTALL.md](INSTALL.md).
     "log_file": "/home/tecnico/ticanet-bot/ticanet.log",
     "msg_cooldown": 8,
     "ack_retries": 3,
-    "sheets_webhook_url": "https://script.google.com/macros/s/.../exec"
+    "sheets_webhook_url": "https://script.google.com/macros/s/.../exec",
+    "aprsfi_api_key": "TU_APRSFI_API_KEY"
 }
 ```
 
-> El campo `timezone_offset` en `config.json` se usa para el comando `HORA`. La latitud/longitud se usan para el beacon, el comando `CLIMA` y el comando `GRID`.
+> El campo `timezone_offset` se usa para el comando `HORA`. La latitud/longitud se usan para el beacon y los comandos `CLIMA` y `GRID`. El campo `aprsfi_api_key` habilita el comando `DIST` (obtené una key gratuita en aprs.fi).
 
 ### events.json
 
@@ -321,6 +337,8 @@ TICANET/
 - **Inspiración**: [MYANET APRS Bot](http://9w2key.blogspot.com/) por 9W2KEY (Malasia)
 - **Biblioteca APRS**: [aprslib](https://github.com/rossengeorgiev/aprs-python)
 - **Referencia**: [APRSD](https://github.com/craigerl/aprsd) por KM6LYW
+- **Datos de posición**: el comando `DIST` usa datos de [aprs.fi](https://aprs.fi/), provistos por Heikki Hannikainen (OH7LZB). Los datos de posición mostrados por `DIST` provienen de aprs.fi.
+- **Clima**: el comando `CLIMA` usa datos de [open-meteo](https://open-meteo.com/).
 
 ## Licencia
 
