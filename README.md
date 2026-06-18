@@ -41,25 +41,47 @@ Un operador de radioaficionado envía un mensaje APRS al bot (por ejemplo `CQ TI
 
 El bot soporta múltiples eventos simultáneos. Cada evento tiene su propio comando CQ, horario y plantilla QSL independiente. No es necesario modificar el código del bot ni del Apps Script para agregar nuevos eventos: solo se edita `events.json`.
 
-| Comando | Evento | Disponibilidad | Plantilla |
-|---------|--------|----------------|-----------|
-| `CQ TICANET` | Net general TICANET | 24/7, todos los días | QSL general |
-| `CQ APRSDAY` | APRS Thursday CR | Jueves, todo el día | QSL Thursday |
-| `CQ MATUTINA` | Revista Matutina TI0ARC | 2do domingo de cada mes | QSL Revista |
-| `CQ [CUSTOM]` | Actividades especiales | Fechas configurables | QSL por evento |
+| Comando | Aliases | Evento | Disponibilidad | Plantilla |
+|---------|---------|--------|----------------|-----------|
+| `CQ TICANET` | `CQ`, `CHECKIN` | Net general TICANET | 24/7, todos los días | QSL general |
+| `CQ APRSDAY` | `CQ THURSDAY` | APRS Thursday CR | Jueves, todo el día | QSL Thursday |
+| `CQ MATUTINA` | `CQ REVISTA` | Revista Matutina TI0ARC | 2do domingo de cada mes | QSL Revista |
+| `CQ [CUSTOM]` | (configurable) | Actividades especiales | Fechas configurables | QSL por evento |
+
+Los **aliases** son comandos alternativos que activan el mismo evento. Por ejemplo, tanto `CQ APRSDAY` como `CQ THURSDAY` registran un check-in en APRS Thursday. Se definen en el campo `aliases` de cada evento en `events.json`.
 
 ## Comandos disponibles
 
-| Comando | Descripción |
-|---------|-------------|
-| `CQ TICANET` | Check-in a la net general (24/7) |
-| `CQ APRSDAY` | Check-in al APRS Thursday |
-| `CQ MATUTINA` | Check-in a la Revista Matutina |
-| `LIST` | Lista de check-ins del evento activo |
-| `STATUS` | Cantidad de check-ins |
-| `INFO` | Comandos disponibles y eventos activos |
-| `EVENTOS` | Lista de todos los eventos programados |
-| `SALIR` | Despedida (el registro se mantiene) |
+Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No distinguen mayúsculas/minúsculas (el bot normaliza el texto), pero deben escribirse de forma exacta (sin texto adicional).
+
+### Comandos de check-in
+
+| Comando | Aliases | Acción |
+|---------|---------|--------|
+| `CQ TICANET` | `CQ`, `CHECKIN` | Check-in a la net general (24/7) |
+| `CQ APRSDAY` | `CQ THURSDAY` | Check-in al APRS Thursday (jueves) |
+| `CQ MATUTINA` | `CQ REVISTA` | Check-in a la Revista Matutina (2do domingo) |
+
+### Comandos de consulta y servicio
+
+| Comando | Aliases | Acción |
+|---------|---------|--------|
+| `LIST` | `LISTA` | Lista de indicativos con check-in en el evento activo |
+| `STATUS` | `ESTADO` | Cantidad de check-ins del evento activo |
+| `INFO` | `HELP`, `AYUDA`, `?` | Comandos de check-in disponibles y otros comandos |
+| `EVENTOS` | `EVENTS` | Lista de todos los eventos programados |
+| `SALIR` | `QUIT`, `EXIT`, `KELUAR` | Despedida (el registro se mantiene) |
+
+## Mensajes de respuesta del bot
+
+| Situación | Respuesta(s) |
+|-----------|--------------|
+| Check-in nuevo | `BIENVENIDO a {evento}! Participante #{N}.` + `Tu codigo: {código} Reclama tu QSL: {URL}` + `Espera {N}s antes de enviar otro mensaje. 73!` |
+| Check-in repetido el mismo día | `Ya registrado en {evento}! Codigo: {código} QSL: {URL}` |
+| Evento no activo en ese horario | `{evento} no esta activo ahora. {descripción}. 73!` |
+| `LIST` sin check-ins | `Aun no hay check-ins.` |
+| `STATUS` | `{evento} \| Check-ins: {N}` |
+| Comando no reconocido | `Cmd no reconocido. Envia INFO para ayuda.` |
 
 ## Arquitectura
 
@@ -197,6 +219,19 @@ Cada evento define su comando, horario y plantilla:
 | `monthly` | `week_of_month`, `day_of_week` | Revista Matutina (2do domingo) |
 | `special` | `start_date`, `end_date` | Net general / Actividad especial |
 
+#### Campos de cada evento
+
+| Campo | Descripción |
+|-------|-------------|
+| `command` | Comando principal que activa el evento |
+| `aliases` | Lista de comandos alternativos que también activan el evento |
+| `start_time` / `end_time` | Ventana horaria diaria en **hora local** (según `timezone_offset`), no UTC |
+| `timezone_offset` | Desfase respecto a UTC (Costa Rica = `-6`) |
+| `description` | Texto que se muestra cuando el evento no está activo |
+| `template_id` | ID de la plantilla de Google Slides para la QSL de ese evento |
+| `form_url` | URL del formulario para reclamar la QSL |
+| `active` | Si el evento está habilitado |
+
 #### Campos opcionales de numeración
 
 | Campo | Tipo | Descripción |
@@ -204,13 +239,15 @@ Cada evento define su comando, horario y plantilla:
 | `cumulative` | bool | Si es `true`, el número de participante es **continuo** y no se reinicia por día (cuenta todos los CSV del evento). Si se omite o es `false`, la numeración se reinicia cada día. |
 | `number_offset` | int | Número base que se suma al conteo acumulado. Útil para arrancar desde un número específico (ej. `37` hace que el siguiente participante sea el `#38`). |
 
+> **Nota sobre horarios:** `start_time` y `end_time`, así como el día de la semana y las fechas, se evalúan en **hora local** del evento (UTC + `timezone_offset`). El único valor en UTC es el timestamp guardado en el CSV y el marcador `{{TIME_UTC}}` de la QSL. Las ventanas que cruzan la medianoche (ej. 22:00 a 02:00) no están soportadas; usar 00:00 a 23:59 para día completo.
+
 ## Numeración de participantes
 
 Por defecto, cada evento numera a los participantes por día: el primer check-in de cada fecha es `#1`. Esto es lo deseable para eventos recurrentes como la Revista Matutina, donde cada emisión arranca su propia cuenta.
 
 Para la net general (`ticanet_general`) la numeración es **acumulativa**: con `cumulative: true` el número crece de forma continua entre días, de modo que un operador puede ser `#38` hoy y `#150` semanas después. El campo `number_offset` permite continuar una numeración previa (por ejemplo, si ya hubo 37 check-ins antes de activar el modo acumulativo, `number_offset: 37` hace que el siguiente sea `#38`).
 
-> Nota: en modo acumulativo, el conteo se calcula como (filas existentes en la carpeta del evento) + `number_offset`. Si se activa el offset sobre datos previos, conviene respaldar y vaciar los CSV antiguos de la carpeta del evento para que el número inicial sea exacto.
+> En modo acumulativo, el conteo se calcula como (filas existentes en la carpeta del evento) + `number_offset`. Si se activa el offset sobre datos previos, conviene respaldar y vaciar los CSV antiguos de la carpeta del evento para que el número inicial sea exacto.
 
 Un mismo operador puede reportarse de nuevo en días distintos y recibir un código y número nuevos; el bloqueo de doble check-in aplica solo dentro de la misma fecha.
 
