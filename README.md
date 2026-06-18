@@ -2,7 +2,7 @@
 
 Bot APRS-IS standalone para gestión de nets y emisión de QSL digitales automatizadas.
 
-Desarrollado Operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica. Grid EJ89BT.
+Desarrollado y operado por **TI3WTI** — RadioLab TEC / TI0ARC, Cartago, Costa Rica. Grid EJ89BT.
 
 Inspirado en [MYANET APRS Bot](http://9w2key.blogspot.com/) de 9W2KEY (Malasia).
 
@@ -68,6 +68,10 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 |---------|---------|--------|
 | `LIST` | `LISTA` | Lista de indicativos con check-in en el evento activo |
 | `STATUS` | `ESTADO` | Cantidad de check-ins del evento activo |
+| `UPTIME` | `UP` | Tiempo que lleva activo el bot |
+| `HORA` | `UTC`, `TIME` | Hora actual UTC y local |
+| `CLIMA` | `WX`, `TIEMPO` | Clima actual en la ubicación del bot (Cartago) |
+| `GRID` | `LOCATOR`, `QTH` | Grid locator Maidenhead y coordenadas del bot |
 | `INFO` | `HELP`, `AYUDA`, `?` | Comandos de check-in disponibles y otros comandos |
 | `EVENTOS` | `EVENTS` | Lista de todos los eventos programados |
 | `SALIR` | `QUIT`, `EXIT`, `KELUAR` | Despedida (el registro se mantiene) |
@@ -79,9 +83,15 @@ Todos los comandos se envían como mensaje APRS dirigido a **TICANET**. No disti
 | Check-in nuevo | `BIENVENIDO a {evento}! Participante #{N}.` + `Tu codigo: {código} Reclama tu QSL: {URL}` + `Espera {N}s antes de enviar otro mensaje. 73!` |
 | Check-in repetido el mismo día | `Ya registrado en {evento}! Codigo: {código} QSL: {URL}` |
 | Evento no activo en ese horario | `{evento} no esta activo ahora. {descripción}. 73!` |
+| `UPTIME` | `TICANET activo: 3d 14h 22m. 73!` |
+| `HORA` | `UTC 04:18 \| Local 22:18 (17/06/2026)` |
+| `CLIMA` | `WX Cartago: 20.0C, HR 91%, viento 0.6km/h. 73!` |
+| `GRID` | `TICANET QTH: EJ89bt (9.8320, -83.8809)` |
 | `LIST` sin check-ins | `Aun no hay check-ins.` |
 | `STATUS` | `{evento} \| Check-ins: {N}` |
 | Comando no reconocido | `Cmd no reconocido. Envia INFO para ayuda.` |
+
+> Los comandos `CLIMA` y `GRID` usan la ubicación configurada del bot (Cartago), no la del operador que pregunta. `CLIMA` obtiene los datos de [open-meteo](https://open-meteo.com/) (sin API key).
 
 ## Arquitectura
 
@@ -172,6 +182,7 @@ Para instrucciones detalladas paso a paso, ver [INSTALL.md](INSTALL.md).
     "beacon_interval": 1800,
     "latitude": 0.0000,
     "longitude": 0.0000,
+    "timezone_offset": -6,
     "beacon_comment": "TICANET Bot - QSL Digital",
     "beacon_symbol_table": "/",
     "beacon_symbol": "#",
@@ -183,6 +194,8 @@ Para instrucciones detalladas paso a paso, ver [INSTALL.md](INSTALL.md).
     "sheets_webhook_url": "https://script.google.com/macros/s/.../exec"
 }
 ```
+
+> El campo `timezone_offset` en `config.json` se usa para el comando `HORA`. La latitud/longitud se usan para el beacon, el comando `CLIMA` y el comando `GRID`.
 
 ### events.json
 
