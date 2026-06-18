@@ -20,6 +20,7 @@ import random
 import string
 import time
 import logging
+import threading
 import requests
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -48,15 +49,21 @@ CONFIG = load_config()
 log_file = CONFIG.get("log_file", os.path.join(SCRIPT_DIR, "ticanet.log"))
 os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
 log = logging.getLogger("TICANET")
+log.setLevel(logging.INFO)
+log.propagate = False  # evita que los mensajes lleguen también al root (duplicados)
+
+# Solo agregar handlers si no existen ya (evita duplicación al re-importar)
+if not log.handlers:
+    _formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
+
+    _file_handler = logging.FileHandler(log_file)
+    _file_handler.setFormatter(_formatter)
+    log.addHandler(_file_handler)
+
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(_formatter)
+    log.addHandler(_stream_handler)
 
 # ============================================================================
 # GESTIÓN DE EVENTOS
@@ -68,6 +75,22 @@ def load_events(filepath):
         return []
     with open(filepath, "r") as f:
         return json.load(f)
+
+
+def latlon_to_grid(lat, lon):
+    """Convierte lat/lon a grid locator Maidenhead (6 caracteres)."""
+    lon += 180.0
+    lat += 90.0
+    A = ord("A")
+    field_lon = int(lon // 20)
+    field_lat = int(lat // 10)
+    square_lon = int((lon % 20) // 2)
+    square_lat = int((lat % 10) // 1)
+    sub_lon = int(((lon % 2) / 2) * 24)
+    sub_lat = int(((lat % 1) / 1) * 24)
+    return (chr(A + field_lon) + chr(A + field_lat) +
+            str(square_lon) + str(square_lat) +
+            chr(A + sub_lon).lower() + chr(A + sub_lat).lower())
 
 
 def is_event_in_window(event):
@@ -275,6 +298,7 @@ class TICANETBot:
         self.last_beacon = 0
         self.ais = None
         self._msg_counter = 0
+        self.start_time = time.time()
 
     def connect(self):
         self.ais = aprslib.IS(
@@ -319,12 +343,18 @@ class TICANETBot:
             log.error(f"Error enviando ACK a {to_call}: {e}")
 
     def send_beacon(self):
+        """Envía el beacon respetando el intervalo (usado al arrancar)."""
         if not self.config.get("beacon_enabled", False):
             return
         now = time.time()
         if now - self.last_beacon < self.config.get("beacon_interval", 1800):
             return
+        self._send_beacon_now()
 
+    def _send_beacon_now(self):
+        """Construye y envía el beacon inmediatamente, sin chequear intervalo."""
+        if not self.config.get("beacon_enabled", False):
+            return
         lat = self.config["latitude"]
         lon = self.config["longitude"]
         lat_dir = "N" if lat >= 0 else "S"
@@ -339,10 +369,22 @@ class TICANETBot:
                   f"={lat_str}{sym_t}{lon_str}{sym_c}{comment}")
         try:
             self.ais.sendall(packet)
-            self.last_beacon = now
+            self.last_beacon = time.time()
             log.info(f"BEACON enviado: {lat_str}/{lon_str}")
         except Exception as e:
             log.error(f"Error enviando beacon: {e}")
+
+    def _beacon_loop(self):
+        """Hilo en segundo plano: emite el beacon cada beacon_interval segundos."""
+        interval = self.config.get("beacon_interval", 1800)
+        while True:
+            time.sleep(interval)
+            # Solo emite si hay conexión activa
+            if self.ais is not None:
+                try:
+                    self._send_beacon_now()
+                except Exception as e:
+                    log.error(f"Error en hilo de beacon: {e}")
 
     def handle_packet(self, packet):
         try:
@@ -399,6 +441,18 @@ class TICANETBot:
             return
         if command in ("STATUS", "ESTADO"):
             self._cmd_status(from_call)
+            return
+        if command in ("UPTIME", "UP"):
+            self._cmd_uptime(from_call)
+            return
+        if command in ("HORA", "UTC", "TIME"):
+            self._cmd_hora(from_call)
+            return
+        if command in ("CLIMA", "WX", "TIEMPO"):
+            self._cmd_clima(from_call)
+            return
+        if command in ("GRID", "LOCATOR", "QTH"):
+            self._cmd_grid(from_call)
             return
 
         self.send_message(from_call,
@@ -463,7 +517,8 @@ class TICANETBot:
                               f"TICANET Bot - Check-in: {', '.join(cq_cmds)}")
             time.sleep(self.config.get("msg_cooldown", 8))
         self.send_message(from_call,
-                          "Otros cmds: LIST, STATUS, EVENTOS, INFO, SALIR")
+                          "Otros cmds: LIST, STATUS, EVENTOS, "
+                          "UPTIME, HORA, CLIMA, GRID, INFO, SALIR")
 
     def _cmd_eventos(self, from_call):
         active = [e for e in self.events if e.get("active")]
@@ -479,6 +534,57 @@ class TICANETBot:
         self.send_message(from_call,
                           "Gracias por participar! Tu registro "
                           "se mantiene. 73 de TICANET!")
+
+    def _cmd_uptime(self, from_call):
+        secs = int(time.time() - self.start_time)
+        d, rem = divmod(secs, 86400)
+        h, rem = divmod(rem, 3600)
+        m, _ = divmod(rem, 60)
+        parts = []
+        if d:
+            parts.append(f"{d}d")
+        if h or d:
+            parts.append(f"{h}h")
+        parts.append(f"{m}m")
+        self.send_message(from_call,
+                          f"TICANET activo: {' '.join(parts)}. 73!")
+
+    def _cmd_hora(self, from_call):
+        now = datetime.utcnow()
+        offset = self.config.get("timezone_offset", -6)
+        local = now + timedelta(hours=offset)
+        self.send_message(
+            from_call,
+            f"UTC {now.strftime('%H:%M')} | Local {local.strftime('%H:%M')} "
+            f"({now.strftime('%d/%m/%Y')})")
+
+    def _cmd_clima(self, from_call):
+        lat = self.config.get("latitude", 0.0)
+        lon = self.config.get("longitude", 0.0)
+        try:
+            url = (f"https://api.open-meteo.com/v1/forecast?"
+                   f"latitude={lat}&longitude={lon}"
+                   f"&current=temperature_2m,relative_humidity_2m,"
+                   f"wind_speed_10m&timezone=auto")
+            r = requests.get(url, timeout=10)
+            cur = r.json().get("current", {})
+            temp = cur.get("temperature_2m", "?")
+            hum = cur.get("relative_humidity_2m", "?")
+            wind = cur.get("wind_speed_10m", "?")
+            self.send_message(
+                from_call,
+                f"WX Cartago: {temp}C, HR {hum}%, viento {wind}km/h. 73!")
+        except Exception as e:
+            log.error(f"Error clima: {e}")
+            self.send_message(from_call,
+                              "No pude obtener el clima ahora. 73!")
+
+    def _cmd_grid(self, from_call):
+        lat = self.config.get("latitude", 0.0)
+        lon = self.config.get("longitude", 0.0)
+        grid = latlon_to_grid(lat, lon)
+        self.send_message(from_call,
+                          f"TICANET QTH: {grid} ({lat:.4f}, {lon:.4f})")
 
     def _get_any_active_in_window(self):
         for event in self.events:
@@ -520,6 +626,13 @@ class TICANETBot:
             status = "ACTIVO" if e.get("active") else "inactivo"
             log.info(f"  [{status}] {e.get('command', '?')} -> {e['name']}")
         log.info("=" * 60)
+
+        # Hilo de beacon periódico (se inicia una sola vez)
+        if self.config.get("beacon_enabled", False):
+            beacon_thread = threading.Thread(target=self._beacon_loop, daemon=True)
+            beacon_thread.start()
+            log.info(f"Hilo de beacon iniciado (cada "
+                     f"{self.config.get('beacon_interval', 1800)}s)")
 
         while True:
             try:
